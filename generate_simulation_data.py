@@ -14,6 +14,26 @@ def makedir(cdir):
             raise
 
 
+def select_snps_random(n, snp_df=None):
+    return np.random.choice(snp_df['SNP'].values, size=n, replace=False)
+
+
+def generate_simulation(outdir, c_loci_file, h, c):
+
+    h_outdir = os.path.join(outdir, "hsq_" + str(h).replace(".", "_"))
+
+    cmds = ["/Users/szabad/software/gcta_1.92.4beta2_mac/bin/gcta",
+            "--bfile", bed_file,
+            "--simu-qt",
+            "--simu-causal-loci", c_loci_file,
+            "--simu-hsq", str(h),
+            "--simu-rep", str(n_replicates),
+            "--keep", os.path.join(keep_file_dir, str(c) + ".csv"),
+            "--out", os.path.join(h_outdir, "sim_out")]
+
+    subprocess.check_output(cmds)
+
+
 # ---------------------------------
 
 # inputs:
@@ -30,6 +50,7 @@ n_causal_snps = 500
 shared_snps = [1.0, 0.9, 0.75]
 shared_effect_sizes = [1.0, 0.75, 0.5, 0.25]
 hsq = [0.1, 0.3, 0.6, 0.9]
+snp_select_func = select_snps_random
 
 # output:
 
@@ -68,30 +89,13 @@ if chr_n is not None:
 
 # ---------------------------------
 
-
-def generate_simulation(outdir, c_loci_file, h, c):
-
-    h_outdir = os.path.join(outdir, "hsq_" + str(h).replace(".", "_"))
-
-    cmds = ["/Users/szabad/software/gcta_1.92.4beta2_mac/bin/gcta",
-            "--bfile", bed_file,
-            "--simu-qt",
-            "--simu-causal-loci", c_loci_file,
-            "--simu-hsq", str(h),
-            "--simu-rep", str(n_replicates),
-            "--keep", os.path.join(keep_file_dir, str(c) + ".csv"),
-            "--out", os.path.join(h_outdir, "sim_out")]
-
-    subprocess.check_output(cmds)
-
-
 if __name__ == '__main__':
     args = []
 
     for ss in shared_snps:
 
         n_shared_causal = int(np.round(ss*n_causal_snps))
-        shared_causal_snps = np.random.choice(snp_df['SNP'].values, size=n_shared_causal, replace=False)
+        shared_causal_snps = snp_select_func(n_shared_causal)
 
         c_snp_df = snp_df.loc[snp_df['SNP'].isin(shared_causal_snps), ['SNP']].reset_index(drop=True)
         c_snp_df['ES'] = 0.
@@ -110,9 +114,8 @@ if __name__ == '__main__':
                         size=len(c_snp_df) - n_shared_effect)
 
                 if ss < 1.:
-                    nonshared_causal_snps = np.random.choice(rem_snp_df['SNP'].values,
-                                                             size=n_causal_snps - n_shared_causal,
-                                                             replace=False)
+                    nonshared_causal_snps = snp_select_func(n_causal_snps - n_shared_causal,
+                                                            rem_snp_df)
 
                     rem_snp_df = rem_snp_df.loc[~rem_snp_df['SNP'].isin(nonshared_causal_snps), ['SNP']]
 

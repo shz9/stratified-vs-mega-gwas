@@ -14,7 +14,7 @@ from multiprocessing import Pool
 
 gwas_methods = ['stratified', 'mega']
 n_causal_snps = 12
-shared_snps = 'ss_0_75'
+shared_snps = 'ss_1_0'
 
 # inputs:
 
@@ -23,7 +23,8 @@ input_dir = "./simulations/gcta_output/%d_causal_snps/%s/" % (n_causal_snps, sha
 bed_file = "/Users/szabad/data/1000G/affy_6_biallelic_snps_maf005_thinned_aut"
 cluster_assignment_file = "./inputs/hdbscan_labels_min10_1000G_UMAP_PC3_NC2_NN15_MD0.5_20184421291.txt"
 cluster_files_dir = "./simulations/keep_files"
-clust_covar_file = "./inputs/affy_6_biallelic_snps_maf005_thinned_aut_pcs_10.eigenvec"
+pca_all_file = "./inputs/pca_all.eigenvec"
+pca_cluster_file = "./inputs/pca_cluster_%s.eigenvec"
 
 # output:
 
@@ -74,7 +75,6 @@ def run_gwas(fs, h, method):
                   "--linear",
                   "--chr", "22",
                   "--pheno", pheno_file,
-                  "--covar", clust_covar_file,
                   "--covar-variance-standardize",
                   "--adjust"]
 
@@ -83,14 +83,16 @@ def run_gwas(fs, h, method):
             clust_dir = os.path.join(plink_outdir, c)
             makedir(clust_dir)
             plink_cmds += ["--out", os.path.join(clust_dir, "gwas_out"),
-                           "--keep", os.path.join(cluster_files_dir, c + ".csv")]
+                           "--keep", os.path.join(cluster_files_dir, c + ".csv"),
+                           "--covar", pca_cluster_file % c]
 
             subprocess.check_output(plink_cmds)
             subprocess.check_output(["/Users/szabad/software/homebrew/bin/pigz", "-r", clust_dir])
-            plink_cmds = plink_cmds[:-4]
+            plink_cmds = plink_cmds[:-6]
     else:
 
-        plink_cmds += ["--out", os.path.join(plink_outdir, "gwas_out")]
+        plink_cmds += ["--out", os.path.join(plink_outdir, "gwas_out"),
+                       "--covar", pca_all_file]
 
         subprocess.check_output(plink_cmds)
         subprocess.check_output(["/Users/szabad/software/homebrew/bin/pigz", "-r", plink_outdir])
